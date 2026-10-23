@@ -1,0 +1,1 @@
+# daiso-goodnotes_v3
