@@ -96,10 +96,98 @@ function areaQuad(q){
 }
 function distance(p,q){return Math.hypot(p.x-q.x,p.y-q.y);}
 
+function localTexture(gray,w,h){
+  const sq=new Float32Array(gray.length);
+  for(let i=0;i<sq.length;i++)sq[i]=gray[i]*gray[i];
+  const avg=boxBlur(gray,w,h,2),avg2=boxBlur(sq,w,h,2);
+  const tex=new Float32Array(gray.length);
+  for(let i=0;i<tex.length;i++)tex[i]=Math.min(24,Math.sqrt(Math.max(0,avg2[i]-avg[i]*avg[i])));
+  return tex;
+}
+function lineByTexture(tex,w,h,side){
+  const horizontal=side==='bottom';
+  const samples=horizontal?
+    Array.from({length:70},(_,i)=>w*(.18+.64*i/69)):
+    Array.from({length:75},(_,i)=>h*(.19+.61*i/74));
+  const signed=side==='left'||side==='bottom'?1:-1;
+  const center=horizontal?w/2:h/2;
+  const pMin=horizontal?.78*h:(side==='left'?.045*w:.77*w);
+  const pMax=horizontal?.947*h:(side==='left'?.19*w:.97*w);
+  const slopeMin=horizontal?-.105:-.135;
+  const slopeMax=horizontal?.105:.135;
+  const pStep=1.8,slopeStep=.009;
+  const off=12;
+  let best=null;
+  for(let p=pMin;p<=pMax;p+=pStep){
+    for(let s=slopeMin;s<=slopeMax+1e-6;s+=slopeStep){
+      const diffs=[];
+      for(const sample of samples){
+        const pos=p+s*(sample-center);
+        if(horizontal){
+          if(pos<off+2||pos>h-off-2)continue;
+          diffs.push(pix(tex,w,h,sample,pos+off)-pix(tex,w,h,sample,pos-off));
+        }else{
+          if(pos<off+2||pos>w-off-2)continue;
+          const out=pix(tex,w,h,pos-off,sample),inside=pix(tex,w,h,pos+off,sample);
+          diffs.push(signed*(out-inside));
+        }
+      }
+      if(diffs.length<samples.length*.85)continue;
+      const med=quantile(diffs,.5),q65=quantile(diffs,.65);
+      const signal=.76*med+.24*q65;
+      const sc=signal*Math.exp(-.06*(s/.085)**2);
+      if(!best||sc>best.score)best={p,s,score:sc,signal};
+    }
+  }
+  if(!best||best.signal<5)throw new Error('画像の液晶の縁が不鮮明です。四隅を修正してください。');
+  return best;
+}
+function topCloseup(gray,w,h){
+ const samples=Array.from({length:81},(_,i)=>w*(.14+.72*i/80));
+ let best=null;
+ for(let p=.055*h;p<=.115*h;p+=1.4){
+  for(let s=-.08;s<=.08+1e-6;s+=.006){
+   const ds=[];
+   for(const x of samples){
+    const y=p+s*(x-w/2);
+    if(y<8||y>h-8)continue;
+    const signed=pix(gray,w,h,x,y+3)-pix(gray,w,h,x,y-3);
+    ds.push(signed);
+   }
+   const med=quantile(ds,.5),q65=quantile(ds,.65);
+   const signal=Math.max(0,med)*.75+Math.max(0,q65)*.25;
+   const sc=signal*Math.exp(-.02*(s/.04)**2)*Math.exp(-.03*((p-.075*h)/(.04*h))**2);
+   if(!best||sc>best.score)best={p,s,score:sc,signal};
+  }
+ }
+ if(!best||best.signal<2.2)throw new Error('画面上端を検出できません。四隅を修正してください。');
+ return best;
+}
+function closeupScreen(image){
+ const w=image.width,h=image.height,gray=grayscale(image),tex=localTexture(gray,w,h);
+ const left=lineByTexture(tex,w,h,'left');
+ const right=lineByTexture(tex,w,h,'right');
+ const bottom=lineByTexture(tex,w,h,'bottom');
+ const top=topCloseup(gray,w,h);
+ const inner={
+  left:{p:left.p-12,s:left.s},
+  right:{p:right.p+4,s:right.s},
+  bottom:{p:bottom.p+3,s:bottom.s},
+  top:{p:top.p+2,s:top.s}
+ };
+ const q=[intersect(inner.left,inner.top,w,h),intersect(inner.right,inner.top,w,h),
+   intersect(inner.right,inner.bottom,w,h),intersect(inner.left,inner.bottom,w,h)];
+ const ratio=(distance(q[0],q[1])+distance(q[2],q[3]))/(distance(q[0],q[3])+distance(q[1],q[2]));
+ if(!(ratio>.55&&ratio<.91)||areaQuad(q)<w*h*.38||q.some(p=>p.x<2||p.x>w-2||p.y<2||p.y>h-2))
+   throw new Error('液晶の四辺を確実に検出できませんでした。四隅を修正してください。');
+ return {quad:q,metrics:{mode:'closeup-v4',ratio,area:areaQuad(q),edges:{left,right,top,bottom}}};
+}
+
 // Inputs in detector-scale image coordinates; called on downscaled image.
 export function detectScreen(image){
   const w=image.width,h=image.height,gray=grayscale(image);
   const {top,bottom}=approxDevice(gray,w,h);
+  if(top <= 5) return closeupScreen(image);
   const dh=bottom-top;
   const outerSamples=Array.from({length:48},(_,i)=>top+dh*(.20+.59*i/47));
   const outerL=candidateLine(gray,w,h,'vertical',.055*w,{
