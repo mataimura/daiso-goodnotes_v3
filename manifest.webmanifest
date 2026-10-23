@@ -1,0 +1,15 @@
+{
+  "name": "DAISO Ink → Goodnotes（v5忠実再現）",
+  "short_name": "DAISO Ink",
+  "description": "電子メモパッドの手書きをGoodnotesで編集可能なインクに変換。端末内処理・無料。",
+  "lang": "ja-JP",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f8f5",
+  "theme_color": "#1c363b",
+  "icons": [
+    {"src":"icon-192.png", "sizes":"192x192","type":"image/png"},
+    {"src":"icon-512.png", "sizes":"512x512","type":"image/png"}
+  ]
+}

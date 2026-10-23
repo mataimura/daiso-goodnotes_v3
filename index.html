@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1c363b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="DAISOインク">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>DAISO Ink → Goodnotes</title>
+  <style>
+    :root{color-scheme:light;--ink:#172e34;--sea:#18756d;--muted:#627477;--line:#e0e7e4;--bg:#f5f8f5;--card:#fff}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.55}
+    header{background:linear-gradient(135deg,#16393b 0%,#1b4b49 100%);color:#fff;padding:28px max(18px,env(safe-area-inset-left)) 36px}
+    .wrap{width:min(700px,100%);padding:0 18px;margin:0 auto}
+    header .wrap{padding:0}
+    h1{font-size:25px;margin:0 0 3px;font-weight:760;letter-spacing:-.025em}
+    .lead{font-size:14px;margin:0;color:#d6e6e2}
+    .slogan{font-size:12px;color:#b4d6d2;margin-top:10px}
+    main{margin:-17px auto 28px;display:grid;gap:15px}
+    .panel{background:var(--card);border:1px solid var(--line);box-shadow:0 3px 16px #17323308;border-radius:18px;padding:18px}
+    .step{color:var(--sea);font-weight:800;font-size:12px;letter-spacing:.06em}
+    h2{font-size:17px;margin:3px 0 12px}
+    p{margin:0 0 11px;font-size:14px}
+    .muted{font-size:13px;color:var(--muted)}
+    .btn{display:flex;align-items:center;justify-content:center;gap:7px;min-height:48px;border-radius:12px;padding:10px 14px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;text-align:center}
+    button{border:1px solid #c4d6d2;background:white;color:var(--ink)}
+    button.primary,.file-btn{background:var(--sea);color:white;border:1px solid var(--sea)}
+    button.secondary{background:#e9f3ef;color:#15544d;border:1px solid #cfe4df}
+    button:disabled{opacity:.43;cursor:not-allowed}
+    button:focus-visible,input:focus-visible{outline:3px solid #f2b956;outline-offset:3px}
+    .file-btn{position:relative;overflow:hidden;width:100%;max-width:100%}
+    .file-btn input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+    .file-btn:focus-within{outline:3px solid #f2b956;outline-offset:2px}
+    .page-indicator{font-size:13px;font-weight:700;color:#185f59;margin:0 0 9px;overflow-wrap:anywhere}
+    .filename{margin-top:10px;overflow-wrap:anywhere;font-size:13px;color:var(--muted)}
+    .viewport{width:100%;border-radius:12px;overflow:hidden;background:#e1e6e4;border:1px solid var(--line);display:grid;place-items:center}
+    canvas{display:block;max-width:100%;height:auto;max-height:57vh;object-fit:contain}
+    #preview-canvas{max-height:44vh}
+    .row{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
+    .row .btn{flex:1;min-width:125px}
+    #photo-canvas.adjust{touch-action:none;cursor:crosshair}
+    .status{padding:12px;border-radius:12px;font-size:13px;background:#eef5f2;color:#1c665a;margin-top:12px;overflow-wrap:anywhere}
+    .status.error{color:#923c30;background:#fff0eb}
+    .status.warning{color:#715008;background:#fff8e4}
+    .settings{margin:14px 0 8px}
+    .settings label{display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px}
+    .settings input[type=range]{width:100%;accent-color:#19766c;min-height:32px}
+    .choice{display:block;width:100%;min-height:43px;padding:8px 12px;border-radius:10px;border:1px solid #b9d1cb;background:white;color:var(--ink);font:inherit;font-size:14px}
+    [hidden]{display:none !important}
+    .instruction{padding:12px 13px;border-left:3px solid #469085;background:#f0f7f4;border-radius:5px;font-size:13px;margin-top:11px}
+    footer{text-align:center;padding:0 22px 32px;color:#6c7d7c;font-size:12px}
+    .pills{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 0}
+    .pill{background:#d7eeea;color:#1c5a55;border-radius:18px;padding:4px 9px;font-size:11px;font-weight:700}
+    .spaced{margin-top:13px}
+    .subnote{font-size:12px;color:#647b78;margin-top:8px}
+    #preview-panel:has([hidden]){}
+    .spinner{width:16px;height:16px;border:2px solid #bee7df;border-top-color:var(--sea);border-radius:50%;display:inline-block;animation:spin .9s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+  <header><div class="wrap">
+    <h1>DAISO Ink <span style="font-weight:400;color:#a3d6cc">→</span> Goodnotes</h1>
+    <p class="lead">写真をまとめて、元の筆跡に近い編集可能なGoodnotesノートに。</p>
+    <div class="pills"><span class="pill">無料</span><span class="pill">写真を送信しない</span><span class="pill">編集可能なペン線</span></div>
+  </div></header>
+  <main class="wrap">
+    <section class="panel" id="input-panel">
+      <div class="step">STEP 01</div><h2>電子メモを撮影・選択</h2>
+      <label class="btn file-btn">📷 写真を複数枚選ぶ（1枚でもOK）
+        <input id="photo-input" type="file" accept="image/*,.heic,.heif,.jpg,.jpeg,.png" multiple aria-label="電子メモパッドの写真を複数選ぶ">
+      </label>
+      <div class="filename" id="filename">DAISO 10.5インチの縦向き写真。最大20枚を1冊にまとめます。</div>
+      <p class="subnote">「写真ライブラリ」から複数枚をまとめて選べます。写真はiPhone内で処理され、サーバーにはアップロードされません。</p>
+    </section>
+    <section class="panel" id="crop-panel" hidden>
+      <div class="step">STEP 02</div><h2>画面の四隅を確認</h2>
+      <div id="page-indicator" class="page-indicator"></div>
+      <div class="viewport"><canvas id="photo-canvas" aria-label="写真と画面の輪郭"></canvas></div>
+      <p class="subnote">青緑の枠が液晶の内側に沿っていればOK。ずれている場合だけ「四隅を修正」。矢印で写真を切り替え、順番も変更できます。</p>
+      <div class="row">
+        <button id="previous" class="btn secondary" type="button">◀ 前の写真</button>
+        <button id="next" class="btn secondary" type="button">次の写真 ▶</button>
+      </div>
+      <div class="row">
+        <button id="move-left" class="btn" type="button">↑ この写真を前のページへ</button>
+        <button id="move-right" class="btn" type="button">↓ この写真を次のページへ</button>
+      </div>
+      <div class="row">
+        <button id="auto-detect" class="btn secondary" type="button">◎ 自動検出し直す</button>
+        <button id="edit-corners" class="btn" type="button">✎ 四隅を修正</button>
+      </div>
+      <div id="crop-status" class="status" role="status">読み込み中...</div>
+      <div class="settings">
+        <label for="sensitivity"><span>筆跡検出の感度</span><strong id="sensitivity-label">標準（9）</strong></label>
+        <input id="sensitivity" type="range" min="5" max="17" step="1" value="9">
+      </div>
+      <div class="settings">
+        <label for="fit-mode"><span>ベクター化の方法</span></label>
+        <select id="fit-mode" class="choice">
+          <option value="v5" selected>忠実再現 v5（おすすめ）</option>
+          <option value="quick">高速変換 v0.2（従来版）</option>
+        </select>
+        <p class="subnote" id="quality-detail">白黒画像に線を再描画して比較し、位置と太さを調整します。枚数が多いと処理時間がかかります。</p>
+      </div>
+      <div class="settings">
+        <label for="line-style"><span>仕上がりの線幅</span></label>
+        <select id="line-style" class="choice">
+          <option value="original" selected>元画像に忠実</option>
+          <option value="light">細め（65%）</option>
+        </select>
+      </div>
+      <button id="convert" class="btn primary" style="width:100%" type="button">✧ まとめてGoodnotesに変換する</button>
+    </section>
+    <section class="panel" id="result-panel" hidden>
+      <div class="step">STEP 03</div><h2>仕上がりとGoodnotes共有</h2>
+      <div id="result-page-indicator" class="page-indicator"></div>
+      <div class="viewport"><canvas id="preview-canvas" aria-label="復元した筆跡のプレビュー"></canvas></div>
+      <div class="row">
+        <button id="preview-previous" class="btn" type="button">◀ 前のページ</button>
+        <button id="preview-next" class="btn" type="button">次のページ ▶</button>
+      </div>
+      <div class="status" id="result-status" role="status"></div>
+      <div class="row">
+        <button id="share" class="btn primary" type="button">↗ Goodnotesへ共有</button>
+        <button id="download" class="btn secondary" type="button">↓ .goodnotesを保存</button>
+      </div>
+      <p class="instruction">共有画面でGoodnotesを選択。表示されない場合は「ファイルに保存」して、Goodnotesの「読み込む」から開いてください。</p>
+      <p class="subnote">画質評価は内部の描画器による近似です。Goodnotes独自形式への非公式変換です。読み込み・投げ縄・消しゴムは端末で確認してください。元の写真は必ず保存してください。</p>
+    </section>
+  </main>
+  <footer>端末内処理 / バージョン 0.3（v5ラスター一致）<br>DAISO 10.5インチ縦置き向け。画像は外部に送信しません。</footer>
+  <script src="vendor/jszip.min.js"></script>
+  <script type="module" src="app.js"></script>
+</body></html>
